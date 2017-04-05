@@ -12,7 +12,7 @@
 ```
 
 ## How to execute?
-### 1. Parse Excel file(sample: 對照表 - v8_10_ref_BASD_TAX_CLASSIFICATION -營業項目代碼(v8.0)與主計處(第10次修正)、財政部行業標準分類(第7次修正).xls)
+#### Package I: parse Excel file(sample: 對照表 - v8_10_ref_BASD_TAX_CLASSIFICATION -營業項目代碼(v8.0)與主計處(第10次修正)、財政部行業標準分類(第7次修正).xls)
 - install necessary packages
 ```
  $ pip install xlrd
