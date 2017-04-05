@@ -79,7 +79,7 @@ class IndustryMappingParser:
             #   print(self.__content[i])
             style = xlwt.XFStyle() 
             font = xlwt.Font() 
-            font.name = '新細明體'
+            font.name = '新細明體' # for mac @@
             style.font = font #
             workbook=xlwt.Workbook()
             sheet = workbook.add_sheet('result')
