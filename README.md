@@ -18,7 +18,7 @@
  $ pip install xlrd
  $ pip install xlwt
 ```
-- modify and run
+- modify 
   -  make sure you modified the following content
 ```
    
@@ -33,7 +33,9 @@ if __name__ == '__main__':
 
     main(fileName, outputFileName)
 ```
-  - run
+- run
 ```
   $ python industryMappingParse.py
 ```
+- check whether there is any exception message. if not, please check the output file
+
