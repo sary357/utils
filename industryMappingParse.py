@@ -67,7 +67,7 @@ class IndustryMappingParser:
                             self.__content[i][3]=self.__content[i-1][3]
                             self.__content[i][4]=self.__content[i-1][4]
           
-        except Exception as inst:
+        except Exception:
             print('Failed to parse the file:' + self.getFileName())
             raise
             
