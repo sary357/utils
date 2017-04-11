@@ -32,6 +32,12 @@ class OpenDataBaseParser(metaclass=ABCMeta):
     def parse(self):
         pass
 
+    def getTotalLines(self):
+        try:
+            num_lines = sum(1 for line in open(self.sourceFileName))
+            return num_lines
+        except Exception:
+            raise
     
     def parseUrlRestInfo(self):
         urlParseResult=urlparse(self.parsingUrl) 
@@ -57,6 +63,7 @@ class OpenDataBaseParser(metaclass=ABCMeta):
         return info
 
     def getOutput(self):
+        print("Dump output file: %s"%(self.outputFile,))
         keyList=sorted(self.resultDisctionary)
         try:
             f=open(self.outputFile, mode='w', encoding="UTF-8")
@@ -72,7 +79,10 @@ class OpenDataBaseParser(metaclass=ABCMeta):
 
 class OtherInfoGetter(OpenDataBaseParser):
     def parse(self):
+        totalLines=super().getTotalLines()
+        
         try:
+            index=0
             ##print(super().getSchemeAndHost(url))
             f=open(self.sourceFileName, 'r',  encoding='UTF-8')
 
@@ -110,7 +120,11 @@ class OtherInfoGetter(OpenDataBaseParser):
                                 if item=="Company_Location":
                                     cl=itemList["Company_Location"]
                                    # print("Company_Location:" + itemList["Company_Location"])
+                index=index+1
                 self.resultDisctionary[bao]=cl+","+csa+","+csd
+                print("Parsing records(OtherInfoGetter): (%d/%d)\r" %(index, totalLines), end='', flush=True)
+                sys.stdout.flush()
+            print()
         except IOError as inst: 
             print("Error happened when parsing the file: " + self.sourceFileName)
             raise
@@ -127,7 +141,10 @@ class OtherInfoGetter(OpenDataBaseParser):
 class IndustryCategoryGetter(OpenDataBaseParser):
 
     def parse(self):
+        totalLines=super().getTotalLines()
+        index=0
         try:
+
             ##print(super().getSchemeAndHost(url))
             f=open(self.sourceFileName, 'r',  encoding='UTF-8')
 
@@ -159,8 +176,11 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                                                
                                             cbItem= category["Business_Item"]                                    
                                     
-             
+                index=index+1
                 self.resultDisctionary[bao]=cbItem
+                print("Parsing records(IndustryCategoryGetter): (%d/%d)\r" %(index, totalLines), end='', flush=True)
+                sys.stdout.flush()
+            print()
         except IOError as inst: 
             print("Error happened when parsing the file: " + self.sourceFileName)
             raise
@@ -183,21 +203,22 @@ if __name__ == '__main__':
     fileName="./SME_Closed.csv"
     #fileName="./1.csv"
 
+    # get 營業項目
+    # if you'd like to have your own output file name, please modify the following
+    outputFileName="./parser_category_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
     # be sure to urlencode for each param
-    url="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
+    url="http://data.gcis.nat.gov.tw/od/data/api/236EE382-4942-41A9-BD03-CA0709025E7C?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
+    p=IndustryCategoryGetter(fileName, outputFileName,url)
+    p.parse()
+    p.getOutput()
 
     # if you'd like to have your own output file name, please modify the following
     outputFileName="./parser_otherinfo_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
-
+    # be sure to urlencode for each param
+    url="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
     # get 地址, 資本額, 設立日期 (以民國紀元)
     p=OtherInfoGetter(fileName, outputFileName, url)
     p.parse()
     p.getOutput()
 
-    # get 營業項目
-    # if you'd like to have your own output file name, please modify the following
-    outputFileName="./parser_category_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
-    url="http://data.gcis.nat.gov.tw/od/data/api/236EE382-4942-41A9-BD03-CA0709025E7C?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
-    p=IndustryCategoryGetter(fileName, outputFileName,url)
-    p.parse()
-    p.getOutput()
+    
