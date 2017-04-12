@@ -94,10 +94,12 @@ class OtherInfoGetter(OpenDataBaseParser):
                 #self.resultDisctionary[line]=''
                 bao=line.strip().replace('\ufeff','')
                 
-                csa='\"\"'
-                cl='\"\"'
-                csd='\"\"'
-
+                csa='' # capital stock amount
+                cl='' # company location
+                csd='' # company setup date
+                rkd='' # revoke date
+                sbd='' # suspend beginning date
+                sed='' # suspend end date
                 connection.request("GET", restInfo+bao)
                 res=connection.getresponse()
                 ##print(res.status)
@@ -112,16 +114,24 @@ class OtherInfoGetter(OpenDataBaseParser):
                         for itemList in  tempList:
                             for item in itemList:                           
                                 if item=="Company_Setup_Date":
-                                    csd=itemList["Company_Setup_Date"]
+                                    csd=str(itemList["Company_Setup_Date"]).strip()
                                    # print("Company_Setup_Date:" + itemList["Company_Setup_Date"])
                                 if item=="Capital_Stock_Amount":
-                                    csa=itemList["Capital_Stock_Amount"]
+                                    csa=str(itemList["Capital_Stock_Amount"]).strip()
                                    # print("Capital_Stock_Amount:" + itemList["Capital_Stock_Amount"])
                                 if item=="Company_Location":
-                                    cl=itemList["Company_Location"]
+                                    cl=str(itemList["Company_Location"]).strip()
                                    # print("Company_Location:" + itemList["Company_Location"])
+                                if item=="Revoke_App_Date":
+                                    rkd=str(itemList["Revoke_App_Date"]).strip()
+                                   # print("Company_Location:" + itemList["Company_Location"])
+                                if item=="Sus_Beg_Date":
+                                    sbd=str(itemList["Sus_Beg_Date"]).strip()
+                                if item=="Sus_End_Date":
+                                    sed=str(itemList["Sus_End_Date"]).strip()
                 index=index+1
-                self.resultDisctionary[bao]=cl+","+csa+","+csd
+                                            # company location, company stock amount, company setup date, revoke date, suspend beginning date, suspend end date
+                self.resultDisctionary[bao]=cl+","+csa+","+csd+','+rkd+','+sbd+','+sed
                 print("Parsing records(OtherInfoGetter): (%d/%d)\r" %(index, totalLines), end='', flush=True)
                 sys.stdout.flush()
             print()
@@ -155,7 +165,7 @@ class IndustryCategoryGetter(OpenDataBaseParser):
             for line in f:
                 #self.resultDisctionary[line]=''
                 bao=line.strip().replace('\ufeff','')
-                cbItem='\"\"'
+                cbItem=''
                 connection.request("GET", restInfo+bao)
                 res=connection.getresponse()
                 ##print(res.status)
@@ -172,9 +182,8 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                                     categoryList=itemList["Cmp_Business"]
                                     for category in   categoryList:
                                         #print(category)   
-                                        if category["Business_Seq_NO"] == "0001" and len(category["Business_Item"].strip())>0:
-                                               
-                                            cbItem= category["Business_Item"]                                    
+                                        if category["Business_Seq_NO"] == "0001" and len(category["Business_Item"].strip())>0:   
+                                            cbItem= str(category["Business_Item"]).strip()                                   
                                     
                 index=index+1
                 self.resultDisctionary[bao]=cbItem
@@ -195,13 +204,14 @@ class IndustryCategoryGetter(OpenDataBaseParser):
             f.close()
 
 
+
 if __name__ == '__main__':
     sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace') 
     today=datetime.now()
    
     # be sure to modify the following to reflect your file name (absolute path)
     fileName="./SME_Closed.csv"
-    #fileName="./1.csv"
+    # fileName="./1.csv"
 
     # get 營業項目
     # if you'd like to have your own output file name, please modify the following
@@ -216,9 +226,11 @@ if __name__ == '__main__':
     outputFileName="./parser_otherinfo_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
     # be sure to urlencode for each param
     url="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
-    # get 地址, 資本額, 設立日期 (以民國紀元)
+    # get 地址, 資本額, 設立日期 (以民國紀元), 解散日期 (歇業日期), 暫停開始日期(開始停業日期), 暫停結束日期 (結束停業日期 i.e. 重新開始營業日期)
     p=OtherInfoGetter(fileName, outputFileName, url)
     p.parse()
     p.getOutput()
+
+    
 
     
