@@ -21,26 +21,14 @@ from datetime import datetime
 import json
 import sys
 
-class OpenDataBaseParser(metaclass=ABCMeta): 
-    def __init__(self, sourceFileName, outputFileName,parsingUrl):
-        self.sourceFileName=sourceFileName
-        self.outputFile=outputFileName
-        self.resultDisctionary={}
-        self.parsingUrl=parsingUrl
-
-    @abstractmethod
-    def parse(self):
-        pass
-
-    def getTotalLines(self):
-        try:
-            num_lines = sum(1 for line in open(self.sourceFileName))
-            return num_lines
-        except Exception:
-            raise
-    
-    def parseUrlRestInfo(self):
-        urlParseResult=urlparse(self.parsingUrl) 
+class ConnectionObject:
+    def __init__(self, connectionUrl):
+        self.connectionUrl=connectionUrl
+        self.restInfo=self.__parseUrlRestInfo__()
+        self.schemeAndHost=self.__getSchemeAndHost__()
+        
+    def __parseUrlRestInfo__(self):
+        urlParseResult=urlparse(self.connectionUrl) 
         restInfo="/"   
 
         
@@ -53,14 +41,37 @@ class OpenDataBaseParser(metaclass=ABCMeta):
         if  urlParseResult.fragment!='':
             restInfo=restInfo+urlParseResult.fragment
         return restInfo
-    def getSchemeAndHost(self):
-        urlParseResult=urlparse(self.parsingUrl)       
+    def __getSchemeAndHost__(self):
+        urlParseResult=urlparse(self.connectionUrl)       
         info=''
-
         if  urlParseResult.netloc != '':
             info=urlParseResult.netloc
        
         return info
+    def getParseUrlRestInfo(self):
+        return self.restInfo
+    def getSchemeAndHost(self):
+        
+        return self.schemeAndHost
+
+
+class OpenDataBaseParser(metaclass=ABCMeta): 
+    def __init__(self, sourceFileName, outputFileName,*connectionObjects):
+        self.sourceFileName=sourceFileName
+        self.outputFile=outputFileName
+        self.resultDisctionary={}
+        self.connectionObjects=connectionObjects
+
+    @abstractmethod
+    def parse(self):
+        pass
+
+    def getTotalLines(self):
+        try:
+            num_lines = sum(1 for line in open(self.sourceFileName))
+            return num_lines
+        except Exception:
+            raise
 
     def getOutput(self):
         print("Dump output file: %s"%(self.outputFile,))
@@ -84,51 +95,55 @@ class OtherInfoGetter(OpenDataBaseParser):
         try:
             index=0
             ##print(super().getSchemeAndHost(url))
+            idxSuccess=0
+            c=[]
             f=open(self.sourceFileName, 'r',  encoding='UTF-8')
 
-            connection=HTTPConnection(super().getSchemeAndHost())
-            restInfo=super().parseUrlRestInfo()
+            cobs=self.connectionObjects
+            for connectObj in cobs:
+                c.append(HTTPConnection(connectObj.getSchemeAndHost()))  
 
             #print(restInfo)
             for line in f:
-                #self.resultDisctionary[line]=''
-                bao=line.strip().replace('\ufeff','')
-                
+                setFlag=False
                 csa='' # capital stock amount
                 cl='' # company location
                 csd='' # company setup date
                 rkd='' # revoke date
                 sbd='' # suspend beginning date
                 sed='' # suspend end date
-                connection.request("GET", restInfo+bao)
-                res=connection.getresponse()
-                ##print(res.status)
-                if res.status==200:
-                    data1=res.read()
-                    #print(data1)
-                    realData=data1.decode('UTF-8')
-                    #print(realData)
-                    #print(bao)   
-                    if len(realData.strip())>0:
-                        tempList=json.loads(realData)
-                        for itemList in  tempList:
-                            for item in itemList:                           
-                                if item=="Company_Setup_Date":
-                                    csd=str(itemList["Company_Setup_Date"]).strip()
-                                   # print("Company_Setup_Date:" + itemList["Company_Setup_Date"])
-                                if item=="Capital_Stock_Amount":
-                                    csa=str(itemList["Capital_Stock_Amount"]).strip()
-                                   # print("Capital_Stock_Amount:" + itemList["Capital_Stock_Amount"])
-                                if item=="Company_Location":
-                                    cl=str(itemList["Company_Location"]).strip()
-                                   # print("Company_Location:" + itemList["Company_Location"])
-                                if item=="Revoke_App_Date":
-                                    rkd=str(itemList["Revoke_App_Date"]).strip()
-                                   # print("Company_Location:" + itemList["Company_Location"])
-                                if item=="Sus_Beg_Date":
-                                    sbd=str(itemList["Sus_Beg_Date"]).strip()
-                                if item=="Sus_End_Date":
-                                    sed=str(itemList["Sus_End_Date"]).strip()
+
+                idx=0
+                bao=line.strip().replace('\ufeff','')
+                if len(bao) <8:
+                    bao="0"*(8-len(bao))+bao
+
+                for connection in c:
+                    if not setFlag: # connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
+                        connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
+                        res=connection.getresponse()
+                        idx+=1
+                        ##print(res.status)
+                        if res.status==200:
+                            data1=res.read()
+                        #print(data1)
+                            realData=data1.decode('UTF-8')
+                        # #print(realData)
+                        #     print(bao)   
+                        #     print(realData)
+                            if len(realData.strip())>0:
+                                tempList=json.loads(realData)
+                                if len(tempList)>0:
+                                    # print(tempList)
+                                    item=tempList[0]
+                                    csd=str(item["Company_Setup_Date"]).strip()
+                                    csa=str(item["Capital_Stock_Amount"]).strip()
+                                    cl=str(item["Company_Location"]).strip()
+                                    rkd=str(item["Revoke_App_Date"]).strip()
+                                    sbd=str(item["Sus_Beg_Date"]).strip()
+                                    sed=str(item["Sus_End_Date"]).strip()
+                                    setFlag=True
+                                   
                 index=index+1
                                             # company location, company stock amount, company setup date, revoke date, suspend beginning date, suspend end date
                 self.resultDisctionary[bao]=cl+","+csa+","+csd+','+rkd+','+sbd+','+sed
@@ -139,13 +154,14 @@ class OtherInfoGetter(OpenDataBaseParser):
             print("Error happened when parsing the file: " + self.sourceFileName)
             raise
         except HTTPException as e:
-            print("Error happened when get the response from remote URL: " + url)
+            print("Error happened when get the response from remote URL")
             raise
         except Exception as e:
             print("Unknown error")
             raise
         finally:
-            connection.close()
+            for connection in c:
+                connection.close()
             f.close()
 
 class IndustryCategoryGetter(OpenDataBaseParser):
@@ -153,54 +169,69 @@ class IndustryCategoryGetter(OpenDataBaseParser):
     def parse(self):
         totalLines=super().getTotalLines()
         index=0
+        idxSuccess=0
+        c=[]
         try:
 
             ##print(super().getSchemeAndHost(url))
             f=open(self.sourceFileName, 'r',  encoding='UTF-8')
 
-            connection=HTTPConnection(super().getSchemeAndHost())
-            restInfo=super().parseUrlRestInfo()
+            cobs=self.connectionObjects
+            for connectObj in cobs:
+                c.append(HTTPConnection(connectObj.getSchemeAndHost()))              
 
             #print(restInfo)
             for line in f:
+                setFlag=False
                 #self.resultDisctionary[line]=''
-                bao=line.strip().replace('\ufeff','')
+                idx=0
                 cbItem=''
-                connection.request("GET", restInfo+bao)
-                res=connection.getresponse()
-                ##print(res.status)
-                if res.status==200:
-                    data1=res.read()
-                    realData=data1.decode('UTF-8')
-                    #print(realData)
-                    if len(realData.strip())>0:
-                        tempList=json.loads(realData)
-                        for itemList in  tempList:
-                            for busItems in itemList:  
-                                #print(busItems)  
-                                if busItems == "Cmp_Business":
-                                    categoryList=itemList["Cmp_Business"]
-                                    for category in   categoryList:
-                                        #print(category)   
-                                        if category["Business_Seq_NO"] == "0001" and len(category["Business_Item"].strip())>0:   
-                                            cbItem= str(category["Business_Item"]).strip()                                   
+                bao=line.strip().replace('\ufeff','')
+                if len(bao) <8:
+                    bao="0"*(8-len(bao))+bao
+
+                for connection in c:
+                    if not setFlag:
+                        connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
+                        res=connection.getresponse()
+                        idx+=1
+                        if res.status==200:
+                            data1=res.read()
+                            realData=data1.decode('UTF-8')
+                            if len(realData.strip())>0:
+                                tempList=json.loads(realData)
+                                if len(tempList) > 0:
+                                    if "Cmp_Business" in tempList[0]:
+                                        categoryList=tempList[0]['Cmp_Business']
+                                        for category in  categoryList: 
+                                            if category["Business_Seq_NO"] == "0001" and len(category["Business_Item"].strip())>0:   
+                                                cbItem= str(category["Business_Item"]).strip() 
+                                                setFlag=True
+                                    if ("Business_Item_Old" in tempList[0]) and (len(tempList[0]['Business_Item_Old']) > 0 ):
+                                        for item in tempList[0]['Business_Item_Old']:
+                                            if item['Business_Seq_No'] == '1':
+                                                cbItem=str(item['Business_Item'])
+                                                setFlag=True
+                if setFlag:
+                    idxSuccess+=1                             
                                     
                 index=index+1
                 self.resultDisctionary[bao]=cbItem
                 print("Parsing records(IndustryCategoryGetter): (%d/%d)\r" %(index, totalLines), end='', flush=True)
                 sys.stdout.flush()
-            print()
+            print("\rSuccessful items: %d/Total items: %d \r" %(idxSuccess, totalLines))
         except IOError as inst: 
             print("Error happened when parsing the file: " + self.sourceFileName)
             raise
         except HTTPException as e:
-            print("Error happened when get the response from remote URL: " + url)
+            print("Error happened when get the response from remote URL")
             raise
         except Exception as e:
             print("Unknown error")
             raise
         finally:
-            connection.close()
+            for connection in c:
+                connection.close()
             f.close()
 
 
@@ -210,26 +241,32 @@ if __name__ == '__main__':
     today=datetime.now()
    
     # be sure to modify the following to reflect your file name (absolute path)
-    fileName="./SME_Closed.csv"
-    # fileName="./1.csv"
+    # fileName="./SME_Closed.csv"
+    fileName="./1.csv"
 
     # get 營業項目
     # if you'd like to have your own output file name, please modify the following
     outputFileName="./parser_category_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
     # be sure to urlencode for each param
-    url="http://data.gcis.nat.gov.tw/od/data/api/236EE382-4942-41A9-BD03-CA0709025E7C?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
-    p=IndustryCategoryGetter(fileName, outputFileName,url)
-    p.parse()
-    p.getOutput()
+    url1="http://data.gcis.nat.gov.tw/od/data/api/236EE382-4942-41A9-BD03-CA0709025E7C?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
+    co1=ConnectionObject(url1)
+    url2="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1?%24format=json&%24filter=President_No%20eq%20"
+    co2=ConnectionObject(url2)
+    # p=IndustryCategoryGetter(fileName, outputFileName,co1, co2)
+    # p.parse()
+    # p.getOutput()
 
     # if you'd like to have your own output file name, please modify the following
     outputFileName="./parser_otherinfo_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
-    # be sure to urlencode for each param
-    url="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
-    # get 地址, 資本額, 設立日期 (以民國紀元), 解散日期 (歇業日期), 暫停開始日期(開始停業日期), 暫停結束日期 (結束停業日期 i.e. 重新開始營業日期)
-    p=OtherInfoGetter(fileName, outputFileName, url)
-    p.parse()
-    p.getOutput()
+    # # be sure to urlencode for each param
+    # url1="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
+    # co1=ConnectionObject(url1)
+    # url2="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1?%24format=json&%24filter=President_No%20eq%20"
+    # co2=ConnectionObject(url2)
+    # # get 地址, 資本額, 設立日期 (以民國紀元), 解散日期 (歇業日期), 暫停開始日期(開始停業日期), 暫停結束日期 (結束停業日期 i.e. 重新開始營業日期)
+    # p=OtherInfoGetter(fileName, outputFileName, co1, co2)
+    # p.parse()
+    # p.getOutput()
 
     
 
