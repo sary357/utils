@@ -42,30 +42,40 @@ if __name__ == '__main__':
 #### Package II: parse CSV file (sample: SME_closed.csv)
 - modify the file: industryItemHelper.py. Make sure you modify the following
 ```
-
 if __name__ == '__main__':
     sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace') 
     today=datetime.now()
+    
+    # the path of your source file and destination file
+    pathName="./"
+
    
     # be sure to modify the following to reflect your file name (absolute path)
-    fileName="./SME_Closed.csv"
-    # fileName="./1.csv"
+    fileName=pathName+"./SME_Closed.csv"
+    #fileName="./1.csv"
+    #fileName="./2.csv"
 
-    # get 營業項目
+    # get 營業項目編號, 營業項目描述
     # if you'd like to have your own output file name, please modify the following
-    outputFileName="./parser_category_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
+    outputFileName=pathName+"./parser_category_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
     # be sure to urlencode for each param
-    url="http://data.gcis.nat.gov.tw/od/data/api/236EE382-4942-41A9-BD03-CA0709025E7C?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
-    p=IndustryCategoryGetter(fileName, outputFileName,url)
+    url1="http://data.gcis.nat.gov.tw/od/data/api/236EE382-4942-41A9-BD03-CA0709025E7C?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
+    co1=ConnectionObject(url1)
+    url2="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1?%24format=json&%24filter=President_No%20eq%20"
+    co2=ConnectionObject(url2)
+    p=IndustryCategoryGetter(fileName, outputFileName,co1, co2)
     p.parse()
     p.getOutput()
 
-    # if you'd like to have your own output file name, please modify the following
-    outputFileName="./parser_otherinfo_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
-    # be sure to urlencode for each param
-    url="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
+    # # if you'd like to have your own output file name, please modify the following
+    outputFileName=pathName+"./parser_otherinfo_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
+    # # be sure to urlencode for each param
+    url1="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
+    co1=ConnectionObject(url1)
+    url2="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1?%24format=json&%24filter=President_No%20eq%20"
+    co2=ConnectionObject(url2)
     # get 地址, 資本額, 設立日期 (以民國紀元), 解散日期 (歇業日期), 暫停開始日期(開始停業日期), 暫停結束日期 (結束停業日期 i.e. 重新開始營業日期)
-    p=OtherInfoGetter(fileName, outputFileName, url)
+    p=OtherInfoGetter(fileName, outputFileName, co1, co2)
     p.parse()
     p.getOutput()
 
