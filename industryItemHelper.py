@@ -166,13 +166,16 @@ class OtherInfoGetter(OpenDataBaseParser):
                             traceback.print_exc()
                         finally:
                             idx+=1
-                    
+                 
+
                 index=index+1
                                             # company location, company stock amount, company setup date, revoke date, suspend beginning date, suspend end date
                 self.resultDisctionary[bao]=cl+","+csa+","+csd+','+rkd+','+sbd+','+sed
+                if setFlag:
+                    idxSuccess+=1  
                 print("Parsing records(OtherInfoGetter): (%d/%d)\r" %(index, totalLines), end='', flush=True)
                 sys.stdout.flush()
-            print()
+            print("\rSuccessful items: %d/Total items: %d \r" %(idxSuccess, totalLines))
         except IOError as inst: 
             print("Error happened when parsing the file: " + self.sourceFileName)
             raise
@@ -230,17 +233,18 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                                         if "Cmp_Business" in tempList[0]:
                                             categoryList=tempList[0]['Cmp_Business']
                                             for category in  categoryList: 
-                                                if category["Business_Seq_NO"] == "0001" and len(category["Business_Item"].strip())>0:   
-                                                    cbItem= str(category["Business_Item"]).strip() 
-                                                    setFlag=True
-                                                if category["Business_Seq_NO"] == "0001" and len(category["Business_Item_Desc"].strip())>0:   
-                                                    cbItem= cbItem+","+str(category["Business_Item_Desc"]).strip() 
+                                                if category["Business_Seq_NO"] == "0001" :   
+                                                    cbItem= str(category["Business_Item"]).strip()+","
+                                                    
+                                                    cbItem= cbItem+str(category["Business_Item_Desc"]).strip() 
+                                                    
                                                     setFlag=True
                                         if ("Business_Item_Old" in tempList[0]) and (len(tempList[0]['Business_Item_Old']) > 0 ):
                                             for item in tempList[0]['Business_Item_Old']:
                                                 if item['Business_Seq_No'] == '1':
-                                                    cbItem=str(item['Business_Item'])
-                                                    cbItem=str(item['Business_Item_Desc'])
+                                                    cbItem=str(item['Business_Item']).strip()+","
+                                                    cbItem=cbItem+str(item['Business_Item_Desc']).strip()
+                                                   
                                                     setFlag=True
                         except Exception as e:
                             print("Error happened")
@@ -251,7 +255,7 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                     idxSuccess+=1                             
                                     
                 index=index+1
-                self.resultDisctionary[bao]=cbItem
+                self.resultDisctionary[bao]=cbItem.replace('\n', '')
                 print("Parsing records(IndustryCategoryGetter): (%d/%d)\r" %(index, totalLines), end='', flush=True)
                 sys.stdout.flush()
             print("\rSuccessful items: %d/Total items: %d \r" %(idxSuccess, totalLines))
@@ -274,15 +278,16 @@ class IndustryCategoryGetter(OpenDataBaseParser):
 if __name__ == '__main__':
     sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace') 
     today=datetime.now()
+    pathName="./"
    
     # be sure to modify the following to reflect your file name (absolute path)
-    fileName="./SME_Closed.csv"
+    fileName=pathName+"./SME_Closed.csv"
     #fileName="./1.csv"
     #fileName="./2.csv"
 
     # get 營業項目
     # if you'd like to have your own output file name, please modify the following
-    outputFileName="./parser_category_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
+    outputFileName=pathName+"./parser_category_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
     # be sure to urlencode for each param
     url1="http://data.gcis.nat.gov.tw/od/data/api/236EE382-4942-41A9-BD03-CA0709025E7C?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
     co1=ConnectionObject(url1)
@@ -292,8 +297,8 @@ if __name__ == '__main__':
     p.parse()
     p.getOutput()
 
-    # if you'd like to have your own output file name, please modify the following
-    outputFileName="./parser_otherinfo_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
+    # # if you'd like to have your own output file name, please modify the following
+    outputFileName=pathName+"./parser_otherinfo_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
     # # be sure to urlencode for each param
     url1="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
     co1=ConnectionObject(url1)
