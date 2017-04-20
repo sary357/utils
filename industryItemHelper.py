@@ -20,6 +20,8 @@ from io import TextIOWrapper
 from datetime import datetime
 import json
 import sys
+import traceback
+
 
 class ConnectionObject:
     def __init__(self, connectionUrl):
@@ -120,30 +122,51 @@ class OtherInfoGetter(OpenDataBaseParser):
 
                 for connection in c:
                     if not setFlag: # connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
-                        connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
-                        res=connection.getresponse()
-                        idx+=1
-                        ##print(res.status)
-                        if res.status==200:
-                            data1=res.read()
-                        #print(data1)
-                            realData=data1.decode('UTF-8')
-                        # #print(realData)
-                        #     print(bao)   
-                        #     print(realData)
-                            if len(realData.strip())>0:
-                                tempList=json.loads(realData)
-                                if len(tempList)>0:
-                                    # print(tempList)
-                                    item=tempList[0]
-                                    csd=str(item["Company_Setup_Date"]).strip()
-                                    csa=str(item["Capital_Stock_Amount"]).strip()
-                                    cl=str(item["Company_Location"]).strip()
-                                    rkd=str(item["Revoke_App_Date"]).strip()
-                                    sbd=str(item["Sus_Beg_Date"]).strip()
-                                    sed=str(item["Sus_End_Date"]).strip()
-                                    setFlag=True
-                                   
+                        
+                        try:
+                            connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
+                            res=connection.getresponse()
+                            
+                            ##print(res.status)
+                            if res.status==200:
+                                data1=res.read()
+                            #print(data1)
+                                realData=data1.decode('UTF-8')
+                            # #print(realData)
+                            #     print(bao)   
+                            #     print(realData)
+                                if len(realData.strip())>0:
+                                    tempList=json.loads(realData)
+                                    if len(tempList)>0:
+                                        # print(tempList)
+                                        item=tempList[0]
+                                        if "Company_Setup_Date" in item:
+                                            csd=str(item["Company_Setup_Date"]).strip()
+                                            setFlag=True
+                                        if "Capital_Stock_Amount" in item:
+                                            csa=str(item["Capital_Stock_Amount"]).strip()
+                                            setFlag=True
+                                        if "Company_Location" in item:
+                                            cl=str(item["Company_Location"]).strip()
+                                            setFlag=True
+                                        if "Business_address" in item:
+                                            cl=str(item["Business_address"]).strip()
+                                            setFlag=True
+                                        if "Revoke_App_Date" in item:
+                                            rkd=str(item["Revoke_App_Date"]).strip()
+                                            setFlag=True
+                                        if "Sus_Beg_Date" in item:
+                                            sbd=str(item["Sus_Beg_Date"]).strip()
+                                            setFlag=True
+                                        if "Sus_End_Date" in item:
+                                            sbd=str(item["Sus_End_Date"]).strip()
+                                            setFlag=True
+                        except Exception as e:
+                            print("Error happened")
+                            traceback.print_exc()
+                        finally:
+                            idx+=1
+                    
                 index=index+1
                                             # company location, company stock amount, company setup date, revoke date, suspend beginning date, suspend end date
                 self.resultDisctionary[bao]=cl+","+csa+","+csd+','+rkd+','+sbd+','+sed
@@ -192,26 +215,38 @@ class IndustryCategoryGetter(OpenDataBaseParser):
 
                 for connection in c:
                     if not setFlag:
-                        connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
-                        res=connection.getresponse()
-                        idx+=1
-                        if res.status==200:
-                            data1=res.read()
-                            realData=data1.decode('UTF-8')
-                            if len(realData.strip())>0:
-                                tempList=json.loads(realData)
-                                if len(tempList) > 0:
-                                    if "Cmp_Business" in tempList[0]:
-                                        categoryList=tempList[0]['Cmp_Business']
-                                        for category in  categoryList: 
-                                            if category["Business_Seq_NO"] == "0001" and len(category["Business_Item"].strip())>0:   
-                                                cbItem= str(category["Business_Item"]).strip() 
-                                                setFlag=True
-                                    if ("Business_Item_Old" in tempList[0]) and (len(tempList[0]['Business_Item_Old']) > 0 ):
-                                        for item in tempList[0]['Business_Item_Old']:
-                                            if item['Business_Seq_No'] == '1':
-                                                cbItem=str(item['Business_Item'])
-                                                setFlag=True
+                        
+                        try:
+                            connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
+                            #print(self.connectionObjects[idx].getParseUrlRestInfo()+bao)
+                            res=connection.getresponse()
+                            if res.status==200:
+                                data1=res.read()
+                                realData=data1.decode('UTF-8')
+                                if len(realData.strip())>0:
+                                    tempList=json.loads(realData)
+                                    #print(realData)
+                                    if len(tempList) > 0:
+                                        if "Cmp_Business" in tempList[0]:
+                                            categoryList=tempList[0]['Cmp_Business']
+                                            for category in  categoryList: 
+                                                if category["Business_Seq_NO"] == "0001" and len(category["Business_Item"].strip())>0:   
+                                                    cbItem= str(category["Business_Item"]).strip() 
+                                                    setFlag=True
+                                                if category["Business_Seq_NO"] == "0001" and len(category["Business_Item_Desc"].strip())>0:   
+                                                    cbItem= cbItem+","+str(category["Business_Item_Desc"]).strip() 
+                                                    setFlag=True
+                                        if ("Business_Item_Old" in tempList[0]) and (len(tempList[0]['Business_Item_Old']) > 0 ):
+                                            for item in tempList[0]['Business_Item_Old']:
+                                                if item['Business_Seq_No'] == '1':
+                                                    cbItem=str(item['Business_Item'])
+                                                    cbItem=str(item['Business_Item_Desc'])
+                                                    setFlag=True
+                        except Exception as e:
+                            print("Error happened")
+                            traceback.print_exc()
+                        finally:
+                            idx+=1
                 if setFlag:
                     idxSuccess+=1                             
                                     
@@ -241,8 +276,9 @@ if __name__ == '__main__':
     today=datetime.now()
    
     # be sure to modify the following to reflect your file name (absolute path)
-    # fileName="./SME_Closed.csv"
-    fileName="./1.csv"
+    fileName="./SME_Closed.csv"
+    #fileName="./1.csv"
+    #fileName="./2.csv"
 
     # get 營業項目
     # if you'd like to have your own output file name, please modify the following
@@ -252,21 +288,21 @@ if __name__ == '__main__':
     co1=ConnectionObject(url1)
     url2="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1?%24format=json&%24filter=President_No%20eq%20"
     co2=ConnectionObject(url2)
-    # p=IndustryCategoryGetter(fileName, outputFileName,co1, co2)
-    # p.parse()
-    # p.getOutput()
+    p=IndustryCategoryGetter(fileName, outputFileName,co1, co2)
+    p.parse()
+    p.getOutput()
 
     # if you'd like to have your own output file name, please modify the following
     outputFileName="./parser_otherinfo_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
     # # be sure to urlencode for each param
-    # url1="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
-    # co1=ConnectionObject(url1)
-    # url2="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1?%24format=json&%24filter=President_No%20eq%20"
-    # co2=ConnectionObject(url2)
-    # # get 地址, 資本額, 設立日期 (以民國紀元), 解散日期 (歇業日期), 暫停開始日期(開始停業日期), 暫停結束日期 (結束停業日期 i.e. 重新開始營業日期)
-    # p=OtherInfoGetter(fileName, outputFileName, co1, co2)
-    # p.parse()
-    # p.getOutput()
+    url1="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
+    co1=ConnectionObject(url1)
+    url2="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1?%24format=json&%24filter=President_No%20eq%20"
+    co2=ConnectionObject(url2)
+    # get 地址, 資本額, 設立日期 (以民國紀元), 解散日期 (歇業日期), 暫停開始日期(開始停業日期), 暫停結束日期 (結束停業日期 i.e. 重新開始營業日期)
+    p=OtherInfoGetter(fileName, outputFileName, co1, co2)
+    p.parse()
+    p.getOutput()
 
     
 
