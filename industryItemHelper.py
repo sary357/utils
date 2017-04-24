@@ -21,6 +21,7 @@ from datetime import datetime
 import json
 import sys
 import traceback
+from time import sleep
 
 
 class ConnectionObject:
@@ -100,6 +101,7 @@ class OtherInfoGetter(OpenDataBaseParser):
             idxSuccess=0
             c=[]
             f=open(self.sourceFileName, 'r',  encoding='UTF-8')
+            ofile=open(self.outputFile, mode='w', encoding="UTF-8")
 
             cobs=self.connectionObjects
             for connectObj in cobs:
@@ -124,6 +126,7 @@ class OtherInfoGetter(OpenDataBaseParser):
                     if not setFlag: # connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
                         
                         try:
+                            
                             connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
                             res=connection.getresponse()
                             
@@ -166,11 +169,14 @@ class OtherInfoGetter(OpenDataBaseParser):
                             traceback.print_exc()
                         finally:
                             idx+=1
+                            connection.close()
                  
 
                 index=index+1
                                             # company location, company stock amount, company setup date, revoke date, suspend beginning date, suspend end date
-                self.resultDisctionary[bao]=cl+","+csa+","+csd+','+rkd+','+sbd+','+sed
+                #self.resultDisctionary[bao]=cl+","+csa+","+csd+','+rkd+','+sbd+','+sed
+                ofile.write("%s,%s\n" %(bao, cl+","+csa+","+csd+','+rkd+','+sbd+','+sed))
+                ofile.flush()
                 if setFlag:
                     idxSuccess+=1  
                 print("Parsing records(OtherInfoGetter): (%d/%d)\r" %(index, totalLines), end='', flush=True)
@@ -186,9 +192,12 @@ class OtherInfoGetter(OpenDataBaseParser):
             print("Unknown error")
             raise
         finally:
-            for connection in c:
-                connection.close()
+            # for connection in c:
+            #     connection.close()
             f.close()
+            ofile.close()
+    def getOutput(self):
+        print("Dump output file: %s"%(self.outputFile,))
 
 class IndustryCategoryGetter(OpenDataBaseParser):
 
@@ -218,8 +227,9 @@ class IndustryCategoryGetter(OpenDataBaseParser):
 
                 for connection in c:
                     if not setFlag:
-                        
                         try:
+                            #sleep(0.5)
+
                             connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
                             #print(self.connectionObjects[idx].getParseUrlRestInfo()+bao)
                             res=connection.getresponse()
@@ -251,6 +261,7 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                             traceback.print_exc()
                         finally:
                             idx+=1
+                            connection.close()
                 if setFlag:
                     idxSuccess+=1                             
                                     
@@ -269,8 +280,7 @@ class IndustryCategoryGetter(OpenDataBaseParser):
             print("Unknown error")
             raise
         finally:
-            for connection in c:
-                connection.close()
+            
             f.close()
 
 
@@ -278,24 +288,27 @@ class IndustryCategoryGetter(OpenDataBaseParser):
 if __name__ == '__main__':
     sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace') 
     today=datetime.now()
+    
+    # the path of your source file and destination file
     pathName="./"
+
    
     # be sure to modify the following to reflect your file name (absolute path)
     fileName=pathName+"./SME_Closed.csv"
     #fileName="./1.csv"
     #fileName="./2.csv"
 
-    # get 營業項目
+    # get 營業項目編號, 營業項目描述
     # if you'd like to have your own output file name, please modify the following
-    outputFileName=pathName+"./parser_category_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
-    # be sure to urlencode for each param
-    url1="http://data.gcis.nat.gov.tw/od/data/api/236EE382-4942-41A9-BD03-CA0709025E7C?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
-    co1=ConnectionObject(url1)
-    url2="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1?%24format=json&%24filter=President_No%20eq%20"
-    co2=ConnectionObject(url2)
-    p=IndustryCategoryGetter(fileName, outputFileName,co1, co2)
-    p.parse()
-    p.getOutput()
+    # outputFileName=pathName+"./parser_category_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
+    # # be sure to urlencode for each param
+    # url1="http://data.gcis.nat.gov.tw/od/data/api/236EE382-4942-41A9-BD03-CA0709025E7C?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
+    # co1=ConnectionObject(url1)
+    # url2="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1?%24format=json&%24filter=President_No%20eq%20"
+    # co2=ConnectionObject(url2)
+    # p=IndustryCategoryGetter(fileName, outputFileName,co1, co2)
+    # p.parse()
+    # p.getOutput()
 
     # # if you'd like to have your own output file name, please modify the following
     outputFileName=pathName+"./parser_otherinfo_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
