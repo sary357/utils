@@ -22,48 +22,85 @@ import json
 import sys
 import traceback
 from time import sleep
+import requests
+import threading
 
+def splitFile(fileName, tempOutFolder, numTempFiles):
+    oFiles=[]
+    try:
+        ifile=open(fileName, mode='r', buffering=-1, encoding='UTF-8')
+        idx=0
+        while idx < numTempFiles:
+            ofile=open(tempOutFolder+"/"+fileName+"_"+str(idx), mode='w')
+            oFiles.append(ofile)
+            idx+=1
+
+        idx=0
+        for line in ifile:
+            if idx==numTempFiles:
+                idx=0
+            stsLine=line.strip().replace('\ufeff','')
+            if len(stsLine) < 8 and len(stsLine)>2:
+                num="0"*(8-len(stsLine))
+                stsLine=num + stsLine
+            oFiles[idx].write(stsLine+'\n')
+            idx+=1
+    except Exception as e:
+        raise
+    finally:
+        idx=0
+        for f in oFiles:
+            f.close()
+        ifile.close()
+
+def get8DigitCompanyId(company_id):
+    bao=company_id
+    bao=bao.strip().replace('\ufeff','')
+    if len(bao) <8:
+        bao="0"*(8-len(bao))+bao
+    return bao
 
 class ConnectionObject:
-    def __init__(self, connectionUrl):
-        self.connectionUrl=connectionUrl
-        self.restInfo=self.__parseUrlRestInfo__()
-        self.schemeAndHost=self.__getSchemeAndHost__()
+    def __init__(self, url, isCompany):
+        self.url=url
+        self.payload={}
+        self.isCompany=isCompany
         
-    def __parseUrlRestInfo__(self):
-        urlParseResult=urlparse(self.connectionUrl) 
-        restInfo="/"   
-
+    def setupPayload(self, company_id):
+        self.payload['$format']='json'
         
-        if urlParseResult.path != '':
-            restInfo=urlParseResult.path
-        if urlParseResult.params!='':
-            restInfo=restInfo+urlParseResult.params
-        if urlParseResult.query!='':
-            restInfo=restInfo+"?"+urlParseResult.query
-        if  urlParseResult.fragment!='':
-            restInfo=restInfo+urlParseResult.fragment
-        return restInfo
-    def __getSchemeAndHost__(self):
-        urlParseResult=urlparse(self.connectionUrl)       
-        info=''
-        if  urlParseResult.netloc != '':
-            info=urlParseResult.netloc
-       
-        return info
-    def getParseUrlRestInfo(self):
-        return self.restInfo
-    def getSchemeAndHost(self):
-        
-        return self.schemeAndHost
+        if self.isCompany:
+            self.payload['$filter']='Business_Accounting_NO eq ' + company_id
+        else:
+            self.payload['$filter'] = 'President_No eq ' + company_id
+    def getResponse(self):
+        try:
+            response=requests.get(self.url, self.payload)
+            response.encoding='UTF-8'
+            #print(str(self.isCompany) + self.url)
+            #print(response.text)
+            if response != None and response.text.strip() != '':
+                return response.json()
+            else:
+                return None
+        except Exception as e:
+            print('url:',self.url)
+            print('payload:',self.payload)
+            print(response.text)
+            traceback.print_exc()
+            return None
 
 
-class OpenDataBaseParser(metaclass=ABCMeta): 
-    def __init__(self, sourceFileName, outputFileName,*connectionObjects):
+class OpenDataBaseParser( threading.Thread, metaclass=ABCMeta): 
+    def __init__(self, threadID, sourceFileName, outputFileName,*connectionObjects):
+        threading.Thread.__init__(self)
         self.sourceFileName=sourceFileName
         self.outputFile=outputFileName
+        self.threadID=threadID
         self.resultDisctionary={}
-        self.connectionObjects=connectionObjects
+        self.connectionObjects=[]
+        for c in connectionObjects:
+            self.connectionObjects.append(ConnectionObject(c.url, c.isCompany))
 
     @abstractmethod
     def parse(self):
@@ -90,22 +127,22 @@ class OpenDataBaseParser(metaclass=ABCMeta):
         finally:
             f.close()
 
+    def run(self):
+        self.parse();
+
 
 class OtherInfoGetter(OpenDataBaseParser):
     def parse(self):
         totalLines=super().getTotalLines()
+        index=0
+        ##print(super().getSchemeAndHost(url))
+        idxSuccess=0
+        c=[]
         
         try:
-            index=0
-            ##print(super().getSchemeAndHost(url))
-            idxSuccess=0
-            c=[]
+            
             f=open(self.sourceFileName, 'r',  encoding='UTF-8')
             ofile=open(self.outputFile, mode='w', encoding="UTF-8")
-
-            cobs=self.connectionObjects
-            for connectObj in cobs:
-                c.append(HTTPConnection(connectObj.getSchemeAndHost()))  
 
             #print(restInfo)
             for line in f:
@@ -118,75 +155,49 @@ class OtherInfoGetter(OpenDataBaseParser):
                 sed='' # suspend end date
 
                 idx=0
-                bao=line.strip().replace('\ufeff','')
-                if len(bao) <8:
-                    bao="0"*(8-len(bao))+bao
+                
+                bao=get8DigitCompanyId(line)
 
-                for connection in c:
-                    if not setFlag: # connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
-                        
-                        try:
-                            
-                            connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
-                            res=connection.getresponse()
-                            
-                            ##print(res.status)
-                            if res.status==200:
-                                data1=res.read()
-                            #print(data1)
-                                realData=data1.decode('UTF-8')
-                            # #print(realData)
-                            #     print(bao)   
-                            #     print(realData)
-                                if len(realData.strip())>0:
-                                    tempList=json.loads(realData)
-                                    if len(tempList)>0:
-                                        # print(tempList)
-                                        item=tempList[0]
-                                        if "Company_Setup_Date" in item:
-                                            csd=str(item["Company_Setup_Date"]).strip()
-                                            setFlag=True
-                                        if "Capital_Stock_Amount" in item:
-                                            csa=str(item["Capital_Stock_Amount"]).strip()
-                                            setFlag=True
-                                        if "Company_Location" in item:
-                                            cl=str(item["Company_Location"]).strip()
-                                            setFlag=True
-                                        if "Business_address" in item:
-                                            cl=str(item["Business_address"]).strip()
-                                            setFlag=True
-                                        if "Revoke_App_Date" in item:
-                                            rkd=str(item["Revoke_App_Date"]).strip()
-                                            setFlag=True
-                                        if "Sus_Beg_Date" in item:
-                                            sbd=str(item["Sus_Beg_Date"]).strip()
-                                            setFlag=True
-                                        if "Sus_End_Date" in item:
-                                            sbd=str(item["Sus_End_Date"]).strip()
-                                            setFlag=True
-                        except Exception as e:
-                            print("Error happened")
-                            traceback.print_exc()
-                        finally:
-                            idx+=1
-                            connection.close()
-                 
+                while (not setFlag) and (idx < len(self.connectionObjects)):
+                    cb=self.connectionObjects[idx]
+                    cb.setupPayload(bao)
+                    sourceJson=cb.getResponse()
 
+                    if sourceJson!=None:
+                        item=sourceJson[0]
+                        if "Company_Setup_Date" in item:
+                            csd=str(item["Company_Setup_Date"]).strip()
+                            setFlag=True
+                        if "Capital_Stock_Amount" in item:
+                            csa=str(item["Capital_Stock_Amount"]).strip()
+                            setFlag=True
+                        if "Company_Location" in item:
+                            cl=str(item["Company_Location"]).strip()
+                            setFlag=True
+                        if "Business_address" in item:
+                            cl=str(item["Business_address"]).strip()
+                            setFlag=True
+                        if "Revoke_App_Date" in item:
+                            rkd=str(item["Revoke_App_Date"]).strip()
+                            setFlag=True
+                        if "Sus_Beg_Date" in item:
+                            sbd=str(item["Sus_Beg_Date"]).strip()
+                            setFlag=True
+                        if "Sus_End_Date" in item:
+                            sbd=str(item["Sus_End_Date"]).strip()
+                            setFlag=True
+                    idx+=1
                 index=index+1
                                             # company location, company stock amount, company setup date, revoke date, suspend beginning date, suspend end date
-                #self.resultDisctionary[bao]=cl+","+csa+","+csd+','+rkd+','+sbd+','+sed
                 ofile.write("%s,%s\n" %(bao, cl+","+csa+","+csd+','+rkd+','+sbd+','+sed))
                 ofile.flush()
                 if setFlag:
                     idxSuccess+=1  
-                print("Parsing records(OtherInfoGetter): (%d/%d)\r" %(index, totalLines), end='', flush=True)
+                print("Thread ID: %d, Parsing records(OtherInfoGetter): (%d/%d)\r" %(self.threadID, index, totalLines), flush=True)
                 sys.stdout.flush()
-            print("\rSuccessful items: %d/Total items: %d \r" %(idxSuccess, totalLines))
+            print("\rThread ID: %d report, Successful items: %d/Total items: %d \r" %(self.threadID, idxSuccess, totalLines))
         except IOError as inst: 
             print("Error happened when parsing the file: " + self.sourceFileName)
-            raise
-        except HTTPException as e:
-            print("Error happened when get the response from remote URL")
             raise
         except Exception as e:
             print("Unknown error")
@@ -209,11 +220,7 @@ class IndustryCategoryGetter(OpenDataBaseParser):
         try:
 
             ##print(super().getSchemeAndHost(url))
-            f=open(self.sourceFileName, 'r',  encoding='UTF-8')
-
-            cobs=self.connectionObjects
-            for connectObj in cobs:
-                c.append(HTTPConnection(connectObj.getSchemeAndHost()))              
+            f=open(self.sourceFileName, 'r',  encoding='UTF-8')          
 
             #print(restInfo)
             for line in f:
@@ -221,55 +228,38 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                 #self.resultDisctionary[line]=''
                 idx=0
                 cbItem=''
-                bao=line.strip().replace('\ufeff','')
-                if len(bao) <8:
-                    bao="0"*(8-len(bao))+bao
+                bao=get8DigitCompanyId(line)
 
-                for connection in c:
-                    if not setFlag:
-                        try:
-                            #sleep(0.5)
+                while (not setFlag) and (idx < len(self.connectionObjects)):
+                    cb=self.connectionObjects[idx]
+                    cb.setupPayload(bao)
+                    tempList=cb.getResponse()
+                    #print(tempList)
 
-                            connection.request("GET", self.connectionObjects[idx].getParseUrlRestInfo()+bao)
-                            #print(self.connectionObjects[idx].getParseUrlRestInfo()+bao)
-                            res=connection.getresponse()
-                            if res.status==200:
-                                data1=res.read()
-                                realData=data1.decode('UTF-8')
-                                if len(realData.strip())>0:
-                                    tempList=json.loads(realData)
-                                    #print(realData)
-                                    if len(tempList) > 0:
-                                        if "Cmp_Business" in tempList[0]:
-                                            categoryList=tempList[0]['Cmp_Business']
-                                            for category in  categoryList: 
-                                                if category["Business_Seq_NO"] == "0001" :   
-                                                    cbItem= str(category["Business_Item"]).strip()+","
-                                                    
-                                                    cbItem= cbItem+str(category["Business_Item_Desc"]).strip() 
-                                                    
-                                                    setFlag=True
-                                        if ("Business_Item_Old" in tempList[0]) and (len(tempList[0]['Business_Item_Old']) > 0 ):
-                                            for item in tempList[0]['Business_Item_Old']:
-                                                if item['Business_Seq_No'] == '1':
-                                                    cbItem=str(item['Business_Item']).strip()+","
-                                                    cbItem=cbItem+str(item['Business_Item_Desc']).strip()
-                                                   
-                                                    setFlag=True
-                        except Exception as e:
-                            print("Error happened")
-                            traceback.print_exc()
-                        finally:
-                            idx+=1
-                            connection.close()
+                    if tempList!=None and tempList[0] != None:
+                        if "Cmp_Business" in tempList[0]:
+                            categoryList=tempList[0]['Cmp_Business']
+                            for category in  categoryList: 
+                                if category["Business_Seq_NO"] == "0001" :   
+                                    cbItem= str(category["Business_Item"]).strip()+","              
+                                    cbItem= cbItem+str(category["Business_Item_Desc"]).strip()              
+                                    setFlag=True
+                        if ("Business_Item_Old" in tempList[0]) and (len(tempList[0]['Business_Item_Old']) > 0 ):
+                            for item in tempList[0]['Business_Item_Old']:
+                                if item['Business_Seq_No'] == '1':
+                                    cbItem=str(item['Business_Item']).strip()+","
+                                    cbItem=cbItem+str(item['Business_Item_Desc']).strip()      
+                                    setFlag=True
+
+                    idx+=1
                 if setFlag:
                     idxSuccess+=1                             
                                     
                 index=index+1
                 self.resultDisctionary[bao]=cbItem.replace('\n', '')
-                print("Parsing records(IndustryCategoryGetter): (%d/%d)\r" %(index, totalLines), end='', flush=True)
+                print("Thread ID: %d, Parsing records(IndustryCategoryGetter): (%d/%d)\r" %(self.threadID, index, totalLines), flush=True)
                 sys.stdout.flush()
-            print("\rSuccessful items: %d/Total items: %d \r" %(idxSuccess, totalLines))
+            print("\rThread ID: %d, Successful items: %d/Total items: %d \r" %(self.threadID, idxSuccess, totalLines))
         except IOError as inst: 
             print("Error happened when parsing the file: " + self.sourceFileName)
             raise
@@ -292,35 +282,50 @@ if __name__ == '__main__':
     # the path of your source file and destination file
     pathName="./"
 
-   
     # be sure to modify the following to reflect your file name (absolute path)
-    fileName=pathName+"./SME_Closed.csv"
-    #fileName="./1.csv"
+    #fileName=pathName+"./SME_Closed.csv"
+    fileName="./1.csv"
     #fileName="./2.csv"
 
-    # get 營業項目編號, 營業項目描述
-    # if you'd like to have your own output file name, please modify the following
-    # outputFileName=pathName+"./parser_category_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
-    # # be sure to urlencode for each param
-    # url1="http://data.gcis.nat.gov.tw/od/data/api/236EE382-4942-41A9-BD03-CA0709025E7C?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
-    # co1=ConnectionObject(url1)
-    # url2="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1?%24format=json&%24filter=President_No%20eq%20"
-    # co2=ConnectionObject(url2)
-    # p=IndustryCategoryGetter(fileName, outputFileName,co1, co2)
-    # p.parse()
-    # p.getOutput()
+    # how many threads you'd like to execute
+    splitFileNum=2
+    splitFile(fileName, pathName, splitFileNum)
 
-    # # if you'd like to have your own output file name, please modify the following
-    outputFileName=pathName+"./parser_otherinfo_"+today.strftime("%Y%m%d%H%M%S_%s")+".csv"
-    # # be sure to urlencode for each param
-    url1="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6?%24format=json&%24filter=Business_Accounting_NO%20eq%20"
-    co1=ConnectionObject(url1)
-    url2="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1?%24format=json&%24filter=President_No%20eq%20"
-    co2=ConnectionObject(url2)
+    # get 營業項目編號, 營業項目描述
+    url0="http://data.gcis.nat.gov.tw/od/data/api/236EE382-4942-41A9-BD03-CA0709025E7C"
+    co0=ConnectionObject(url0, True)
+    url1="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1"
+    co1=ConnectionObject(url1, False)
+    threads=[]
+    for index in range(0, splitFileNum):
+        threads.append(IndustryCategoryGetter(index, fileName+"_"+str(index), 'parse_category_'+str(index)+'.csv', co0, co1))
+
+    index=0
+    for index in range(0, splitFileNum):
+        threads[index].start()
+
+    index=0
+    for index in range(0, splitFileNum):
+        threads[index].join()
+        threads[index].getOutput()
+
+
     # get 地址, 資本額, 設立日期 (以民國紀元), 解散日期 (歇業日期), 暫停開始日期(開始停業日期), 暫停結束日期 (結束停業日期 i.e. 重新開始營業日期)
-    p=OtherInfoGetter(fileName, outputFileName, co1, co2)
-    p.parse()
-    p.getOutput()
+    url0="http://data.gcis.nat.gov.tw/od/data/api/5F64D864-61CB-4D0D-8AD9-492047CC1EA6"
+    co0=ConnectionObject(url0, True)
+    url1="http://lasai.org/od/data/api/426D5542-5F05-43EB-83F9-F1300F14E1F1"
+    co1=ConnectionObject(url1, False)
+    
+    threads=[]
+    for index in range(0, splitFileNum):
+        threads.append(OtherInfoGetter(index, fileName+"_"+str(index), 'parse_other_info_'+str(index)+'.csv', co0, co1))
+
+    for index in range(0, splitFileNum):
+        threads[index].start()
+
+    for index in range(0, splitFileNum):
+        threads[index].join()
+        threads[index].getOutput()
 
     
 

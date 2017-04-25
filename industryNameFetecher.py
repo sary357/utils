@@ -174,14 +174,13 @@ if __name__ == '__main__':
 
     # how many threads you'd like to execute
     splitFileNum=2
+    splitFile(fileName, pathName, splitFileNum)
     
 
     # Part I: get company name
     # urls that we will use
     co0=ConnectionObject('http://lasai.org/od/data/api/9D17AE0D-09B5-4732-A8F4-81ADED04B679', True)
     co1=ConnectionObject('http://lasai.org/od/data/api/855A3C87-003A-4930-AA4B-2F4130D713DC', False)
-
-    splitFile(fileName, pathName, splitFileNum)
 
     index=0
     threads=[]
