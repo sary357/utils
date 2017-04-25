@@ -24,40 +24,11 @@ import traceback
 from time import sleep
 import threading
 import requests
+
 import copy
-
-
-class ConnectionObject:
-    def __init__(self, url, isCompany):
-        self.url=url
-        self.payload={}
-        self.isCompany=isCompany
-        
-    def setupPayload(self, company_id):
-        self.payload['$format']='json'
-        
-        if self.isCompany:
-            self.payload['$filter']='Business_Accounting_NO eq ' + company_id
-        else:
-            self.payload['$filter'] = 'President_No eq ' + company_id
-    def getResponse(self):
-        try:
-            response=requests.get(self.url, self.payload)
-            response.encoding='UTF-8'
-            #print(str(self.isCompany) + self.url)
-            if response != None and response.text.strip() != '':
-                if self.isCompany:
-                    return response.json()[0]['Company_Name']
-                else:
-                    
-                    return response.json()[0]['Business_Name']
-        except Exception as e:
-            print('url:',self.url)
-            print('payload:',self.payload)
-            print(response.text)
-            traceback.print_exc()
-            return ''
-
+from utils import get8DigitCompanyId
+from utils import splitFile
+from ConnectionObject import ConnectionObject
 
 
 class IndustryNameGetter(threading.Thread):
@@ -94,14 +65,14 @@ class IndustryNameGetter(threading.Thread):
                 cn='' # company name
 
                 idx=0
-                bao=line.strip().replace('\ufeff','')
+                bao=get8DigitCompanyId(line)
 
                 while (not setFlag) and (idx < len(self.connectionObjects)):
                     cb=self.connectionObjects[idx]
                     cb.setupPayload(bao)
                     
                     cn=cb.getResponse()
-                    if cn != None and cn!='':
+                    if cn != None:
                         setFlag=True
                     idx+=1
 
@@ -129,36 +100,6 @@ class IndustryNameGetter(threading.Thread):
         self.parse();
 
 
-
-def splitFile(fileName, tempOutFolder, numTempFiles):
-    oFiles=[]
-    try:
-        ifile=open(fileName, mode='r', buffering=-1, encoding='UTF-8')
-        idx=0
-        while idx < numTempFiles:
-            ofile=open(tempOutFolder+"/"+fileName+"_"+str(idx), mode='w')
-            oFiles.append(ofile)
-            idx+=1
-
-        idx=0
-        for line in ifile:
-            if idx==numTempFiles:
-                idx=0
-            stsLine=line.strip().replace('\ufeff','')
-            if len(stsLine) < 8 and len(stsLine)>2:
-                num="0"*(8-len(stsLine))
-                stsLine=num + stsLine
-            oFiles[idx].write(stsLine+'\n')
-            idx+=1
-    except Exception as e:
-        raise
-    finally:
-        idx=0
-        for f in oFiles:
-            f.close()
-        ifile.close()
-
-
 if __name__ == '__main__':
     sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace') 
     today=datetime.now()
@@ -173,7 +114,7 @@ if __name__ == '__main__':
     #fileName=pathName+"./SME_Closed.csv"
 
     # how many threads you'd like to execute
-    splitFileNum=2
+    splitFileNum=1
     splitFile(fileName, pathName, splitFileNum)
     
 

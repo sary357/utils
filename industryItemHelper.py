@@ -24,71 +24,75 @@ import traceback
 from time import sleep
 import requests
 import threading
+from utils import get8DigitCompanyId
+from utils import splitFile
 
-def splitFile(fileName, tempOutFolder, numTempFiles):
-    oFiles=[]
-    try:
-        ifile=open(fileName, mode='r', buffering=-1, encoding='UTF-8')
-        idx=0
-        while idx < numTempFiles:
-            ofile=open(tempOutFolder+"/"+fileName+"_"+str(idx), mode='w')
-            oFiles.append(ofile)
-            idx+=1
+from ConnectionObject import ConnectionObject
 
-        idx=0
-        for line in ifile:
-            if idx==numTempFiles:
-                idx=0
-            stsLine=line.strip().replace('\ufeff','')
-            if len(stsLine) < 8 and len(stsLine)>2:
-                num="0"*(8-len(stsLine))
-                stsLine=num + stsLine
-            oFiles[idx].write(stsLine+'\n')
-            idx+=1
-    except Exception as e:
-        raise
-    finally:
-        idx=0
-        for f in oFiles:
-            f.close()
-        ifile.close()
+# def splitFile(fileName, tempOutFolder, numTempFiles):
+#     oFiles=[]
+#     try:
+#         ifile=open(fileName, mode='r', buffering=-1, encoding='UTF-8')
+#         idx=0
+#         while idx < numTempFiles:
+#             ofile=open(tempOutFolder+"/"+fileName+"_"+str(idx), mode='w')
+#             oFiles.append(ofile)
+#             idx+=1
 
-def get8DigitCompanyId(company_id):
-    bao=company_id
-    bao=bao.strip().replace('\ufeff','')
-    if len(bao) <8:
-        bao="0"*(8-len(bao))+bao
-    return bao
+#         idx=0
+#         for line in ifile:
+#             if idx==numTempFiles:
+#                 idx=0
+#             stsLine=line.strip().replace('\ufeff','')
+#             if len(stsLine) < 8 and len(stsLine)>2:
+#                 num="0"*(8-len(stsLine))
+#                 stsLine=num + stsLine
+#             oFiles[idx].write(stsLine+'\n')
+#             idx+=1
+#     except Exception as e:
+#         raise
+#     finally:
+#         idx=0
+#         for f in oFiles:
+#             f.close()
+#         ifile.close()
 
-class ConnectionObject:
-    def __init__(self, url, isCompany):
-        self.url=url
-        self.payload={}
-        self.isCompany=isCompany
+# def get8DigitCompanyId(company_id):
+#     bao=company_id
+#     bao=bao.strip().replace('\ufeff','')
+#     if len(bao) <8:
+#         bao="0"*(8-len(bao))+bao
+#     return bao
+
+# class ConnectionObject:
+#     def __init__(self, url, isCompany):
+#         self.url=url
+#         self.payload={}
+#         self.isCompany=isCompany
         
-    def setupPayload(self, company_id):
-        self.payload['$format']='json'
+#     def setupPayload(self, company_id):
+#         self.payload['$format']='json'
         
-        if self.isCompany:
-            self.payload['$filter']='Business_Accounting_NO eq ' + company_id
-        else:
-            self.payload['$filter'] = 'President_No eq ' + company_id
-    def getResponse(self):
-        try:
-            response=requests.get(self.url, self.payload)
-            response.encoding='UTF-8'
-            #print(str(self.isCompany) + self.url)
-            #print(response.text)
-            if response != None and response.text.strip() != '':
-                return response.json()
-            else:
-                return None
-        except Exception as e:
-            print('url:',self.url)
-            print('payload:',self.payload)
-            print(response.text)
-            traceback.print_exc()
-            return None
+#         if self.isCompany:
+#             self.payload['$filter']='Business_Accounting_NO eq ' + company_id
+#         else:
+#             self.payload['$filter'] = 'President_No eq ' + company_id
+#     def getResponse(self):
+#         try:
+#             response=requests.get(self.url, self.payload)
+#             response.encoding='UTF-8'
+#             #print(str(self.isCompany) + self.url)
+#             #print(response.text)
+#             if response != None and response.text.strip() != '':
+#                 return response.json()
+#             else:
+#                 return None
+#         except Exception as e:
+#             print('url:',self.url)
+#             print('payload:',self.payload)
+#             print(response.text)
+#             traceback.print_exc()
+#             return None
 
 
 class OpenDataBaseParser( threading.Thread, metaclass=ABCMeta): 
@@ -138,7 +142,8 @@ class OtherInfoGetter(OpenDataBaseParser):
         ##print(super().getSchemeAndHost(url))
         idxSuccess=0
         c=[]
-        
+        maxRetryCount=2 # max retry count
+        retryIdx=0
         try:
             
             f=open(self.sourceFileName, 'r',  encoding='UTF-8')
@@ -154,39 +159,39 @@ class OtherInfoGetter(OpenDataBaseParser):
                 sbd='' # suspend beginning date
                 sed='' # suspend end date
 
-                idx=0
-                
                 bao=get8DigitCompanyId(line)
 
-                while (not setFlag) and (idx < len(self.connectionObjects)):
-                    cb=self.connectionObjects[idx]
-                    cb.setupPayload(bao)
-                    sourceJson=cb.getResponse()
+                while (retryIdx < maxRetryCount) and (not setFlag):
+                    idx=0
+                    while (not setFlag) and (idx < len(self.connectionObjects)):
+                        cb=self.connectionObjects[idx]
+                        cb.setupPayload(bao)
+                        sourceJson=cb.getResponse()
 
-                    if sourceJson!=None:
-                        item=sourceJson[0]
-                        if "Company_Setup_Date" in item:
-                            csd=str(item["Company_Setup_Date"]).strip()
-                            setFlag=True
-                        if "Capital_Stock_Amount" in item:
-                            csa=str(item["Capital_Stock_Amount"]).strip()
-                            setFlag=True
-                        if "Company_Location" in item:
-                            cl=str(item["Company_Location"]).strip()
-                            setFlag=True
-                        if "Business_address" in item:
-                            cl=str(item["Business_address"]).strip()
-                            setFlag=True
-                        if "Revoke_App_Date" in item:
-                            rkd=str(item["Revoke_App_Date"]).strip()
-                            setFlag=True
-                        if "Sus_Beg_Date" in item:
-                            sbd=str(item["Sus_Beg_Date"]).strip()
-                            setFlag=True
-                        if "Sus_End_Date" in item:
-                            sbd=str(item["Sus_End_Date"]).strip()
-                            setFlag=True
-                    idx+=1
+                        if sourceJson!=None:
+                            item=sourceJson[0]
+                            if "Company_Setup_Date" in item:
+                                csd=str(item["Company_Setup_Date"]).strip()
+                                setFlag=True
+                            if "Capital_Stock_Amount" in item:
+                                csa=str(item["Capital_Stock_Amount"]).strip()
+                                setFlag=True
+                            if "Company_Location" in item:
+                                cl=str(item["Company_Location"]).strip()
+                                setFlag=True
+                            if "Business_address" in item:
+                                cl=str(item["Business_address"]).strip()
+                                setFlag=True
+                            if "Revoke_App_Date" in item:
+                                rkd=str(item["Revoke_App_Date"]).strip()
+                                setFlag=True
+                            if "Sus_Beg_Date" in item:
+                                sbd=str(item["Sus_Beg_Date"]).strip()
+                                setFlag=True
+                            if "Sus_End_Date" in item:
+                                sbd=str(item["Sus_End_Date"]).strip()
+                                setFlag=True
+                        idx+=1
                 index=index+1
                                             # company location, company stock amount, company setup date, revoke date, suspend beginning date, suspend end date
                 ofile.write("%s,%s\n" %(bao, cl+","+csa+","+csd+','+rkd+','+sbd+','+sed))
@@ -217,6 +222,8 @@ class IndustryCategoryGetter(OpenDataBaseParser):
         index=0
         idxSuccess=0
         c=[]
+        maxRetryCount=2 # max retry count
+        retryIdx=0
         try:
 
             ##print(super().getSchemeAndHost(url))
@@ -225,33 +232,33 @@ class IndustryCategoryGetter(OpenDataBaseParser):
             #print(restInfo)
             for line in f:
                 setFlag=False
-                #self.resultDisctionary[line]=''
-                idx=0
                 cbItem=''
                 bao=get8DigitCompanyId(line)
 
-                while (not setFlag) and (idx < len(self.connectionObjects)):
-                    cb=self.connectionObjects[idx]
-                    cb.setupPayload(bao)
-                    tempList=cb.getResponse()
-                    #print(tempList)
+                while (retryIdx < maxRetryCount) and (not setFlag):
+                    idx=0
+                    while (not setFlag) and (idx < len(self.connectionObjects)):
+                        cb=self.connectionObjects[idx]
+                        cb.setupPayload(bao)
+                        tempList=cb.getResponse()
+                        #print(tempList)
 
-                    if tempList!=None and tempList[0] != None:
-                        if "Cmp_Business" in tempList[0]:
-                            categoryList=tempList[0]['Cmp_Business']
-                            for category in  categoryList: 
-                                if category["Business_Seq_NO"] == "0001" :   
-                                    cbItem= str(category["Business_Item"]).strip()+","              
-                                    cbItem= cbItem+str(category["Business_Item_Desc"]).strip()              
-                                    setFlag=True
-                        if ("Business_Item_Old" in tempList[0]) and (len(tempList[0]['Business_Item_Old']) > 0 ):
-                            for item in tempList[0]['Business_Item_Old']:
-                                if item['Business_Seq_No'] == '1':
-                                    cbItem=str(item['Business_Item']).strip()+","
-                                    cbItem=cbItem+str(item['Business_Item_Desc']).strip()      
-                                    setFlag=True
+                        if tempList!=None and tempList[0] != None:
+                            if "Cmp_Business" in tempList[0]:
+                                categoryList=tempList[0]['Cmp_Business']
+                                for category in  categoryList: 
+                                    if category["Business_Seq_NO"] == "0001" :   
+                                        cbItem= str(category["Business_Item"]).strip()+","              
+                                        cbItem= cbItem+str(category["Business_Item_Desc"]).strip()              
+                                        setFlag=True
+                            if ("Business_Item_Old" in tempList[0]) and (len(tempList[0]['Business_Item_Old']) > 0 ):
+                                for item in tempList[0]['Business_Item_Old']:
+                                    if item['Business_Seq_No'] == '1':
+                                        cbItem=str(item['Business_Item']).strip()+","
+                                        cbItem=cbItem+str(item['Business_Item_Desc']).strip()      
+                                        setFlag=True
 
-                    idx+=1
+                        idx+=1
                 if setFlag:
                     idxSuccess+=1                             
                                     
@@ -286,9 +293,10 @@ if __name__ == '__main__':
     #fileName=pathName+"./SME_Closed.csv"
     fileName="./1.csv"
     #fileName="./2.csv"
+    #fileName="./need_to_get_company_id.txt"
 
     # how many threads you'd like to execute
-    splitFileNum=2
+    splitFileNum=3
     splitFile(fileName, pathName, splitFileNum)
 
     # get 營業項目編號, 營業項目描述
