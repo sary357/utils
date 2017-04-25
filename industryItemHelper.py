@@ -160,7 +160,7 @@ class OtherInfoGetter(OpenDataBaseParser):
                 sed='' # suspend end date
 
                 bao=get8DigitCompanyId(line)
-
+                retryIdx=0
                 while (retryIdx < maxRetryCount) and (not setFlag):
                     idx=0
                     while (not setFlag) and (idx < len(self.connectionObjects)):
@@ -192,6 +192,7 @@ class OtherInfoGetter(OpenDataBaseParser):
                                 sbd=str(item["Sus_End_Date"]).strip()
                                 setFlag=True
                         idx+=1
+                    retryIdx+=1
                 index=index+1
                                             # company location, company stock amount, company setup date, revoke date, suspend beginning date, suspend end date
                 ofile.write("%s,%s\n" %(bao, cl+","+csa+","+csd+','+rkd+','+sbd+','+sed))
@@ -234,7 +235,7 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                 setFlag=False
                 cbItem=''
                 bao=get8DigitCompanyId(line)
-
+                retryIdx=0
                 while (retryIdx < maxRetryCount) and (not setFlag):
                     idx=0
                     while (not setFlag) and (idx < len(self.connectionObjects)):
@@ -259,6 +260,7 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                                         setFlag=True
 
                         idx+=1
+                    retryIdx+=1
                 if setFlag:
                     idxSuccess+=1                             
                                     
