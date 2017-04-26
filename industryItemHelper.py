@@ -262,9 +262,12 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                         idx+=1
                     retryIdx+=1
                 if setFlag:
-                    idxSuccess+=1                             
+                    idxSuccess+=1 
+                if not setFlag:
+                    cbItem=','                           
                                     
                 index=index+1
+
                 self.resultDisctionary[bao]=cbItem.replace('\n', '')
                 print("Thread ID: %d, Parsing records(IndustryCategoryGetter): (%d/%d)\r" %(self.threadID, index, totalLines), flush=True)
                 sys.stdout.flush()
