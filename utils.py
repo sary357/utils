@@ -5,7 +5,7 @@ Some utilty functions
 
 P.S: encodoing in env must be UTF-8
 """
-
+from datetime import datetime
 def splitFile(fileName, tempOutFolder, numTempFiles):
     oFiles=[]
     try:
@@ -40,3 +40,8 @@ def get8DigitCompanyId(company_id):
     if len(bao) <8:
         bao="0"*(8-len(bao))+bao
     return bao
+
+def getTmpFileNamePostfix():
+    currentTime=datetime.now()
+    tmpFilePostfix=currentTime.strftime('%Y%m%d%H%M%S')
+    return tmpFilePostfix
