@@ -160,7 +160,6 @@ class OtherInfoGetter(OpenDataBaseParser):
                 sed='' # suspend end date
 
                 bao=get8DigitCompanyId(line)
-               # print(bao)
                 retryIdx=0
                 while (retryIdx < maxRetryCount) and (not setFlag):
                     idx=0
@@ -236,7 +235,6 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                 setFlag=False
                 cbItem=''
                 bao=get8DigitCompanyId(line)
-                #print(bao)
                 retryIdx=0
                 while (retryIdx < maxRetryCount) and (not setFlag):
                     idx=0
@@ -244,7 +242,7 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                         cb=self.connectionObjects[idx]
                         cb.setupPayload(bao)
                         tempList=cb.getResponse()
-                       #mpList)
+                        #print(tempList)
 
                         if tempList!=None and tempList[0] != None:
                             if "Cmp_Business" in tempList[0]:
@@ -266,9 +264,10 @@ class IndustryCategoryGetter(OpenDataBaseParser):
                 if setFlag:
                     idxSuccess+=1 
                 if not setFlag:
-                    cbItem=','                            
+                    cbItem=','                           
                                     
                 index=index+1
+
                 self.resultDisctionary[bao]=cbItem.replace('\n', '')
                 print("Thread ID: %d, Parsing records(IndustryCategoryGetter): (%d/%d)\r" %(self.threadID, index, totalLines), flush=True)
                 sys.stdout.flush()
@@ -297,12 +296,12 @@ if __name__ == '__main__':
 
     # be sure to modify the following to reflect your file name (absolute path)
     #fileName=pathName+"./SME_Closed.csv"
-    #fileName="./1.csv"
+    fileName="./1.csv"
     #fileName="./2.csv"
-    fileName="./company_id_lost_category.csv"
+    #fileName="./need_to_get_company_id.txt"
 
     # how many threads you'd like to execute
-    splitFileNum=2
+    splitFileNum=3
     splitFile(fileName, pathName, splitFileNum)
 
     # get 營業項目編號, 營業項目描述
@@ -331,15 +330,15 @@ if __name__ == '__main__':
     co1=ConnectionObject(url1, False)
     
     threads=[]
-    #for index in range(0, splitFileNum):
-    #    threads.append(OtherInfoGetter(index, fileName+"_"+str(index), 'parse_other_info_'+str(index)+'.csv', co0, co1))
+    for index in range(0, splitFileNum):
+        threads.append(OtherInfoGetter(index, fileName+"_"+str(index), 'parse_other_info_'+str(index)+'.csv', co0, co1))
 
-    #for index in range(0, splitFileNum):
-    #    threads[index].start()
+    for index in range(0, splitFileNum):
+        threads[index].start()
 
-    #for index in range(0, splitFileNum):
-    #    threads[index].join()
-    #    threads[index].getOutput()
+    for index in range(0, splitFileNum):
+        threads[index].join()
+        threads[index].getOutput()
 
     
 
