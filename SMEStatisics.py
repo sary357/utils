@@ -72,7 +72,7 @@ def outputStatisticsNumberToExcel(dataDictionary,areaSet, categorySet, tabTitle,
 
     wb.save(fileName)
     print('Export the data to the file: '+fileName )
-    
+
 
 # I: setting
 path='D:/fuming.Tsai/Documents/Tools/PortableGit/projects/GitDocs/06-專案文件/05-SME授信客戶資金需求/'
