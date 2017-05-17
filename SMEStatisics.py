@@ -55,9 +55,10 @@ def outputStatisticsNumberToExcel(reviewedDataDict, totalDataDict,titleList, tab
         indx=2
         
         for k in tmpKeySet:
+            formula='sum('
             ws.cell(row=indx, column=1, value=k)
             ws.cell(row=indx, column=3, value=tmpDic[k])
-            ws.cell(row=indx, column=4, value=)
+            #ws.cell(row=indx, column=4, value=)
             indx+=1
         formulaReview="=sum(b2:b"+str(indx-1)+")"
         formulaTotal="=sum(b2:b"+str(indx-1)+")"
@@ -70,7 +71,7 @@ def outputStatisticsNumberToExcel(reviewedDataDict, totalDataDict,titleList, tab
 # I: setting
 path='D:/fuming.Tsai/Documents/Tools/PortableGit/projects/GitDocs/06-專案文件/05-SME授信客戶資金需求/'
 smeFile='sme_all_industry.csv'
-smeFile='test20170516.csv'
+#smeFile='test20170516.csv'
 smeCategoryFile='新興業務區中心.csv'
 reviewResult='uniaprcust.csv'
 categoryThree=['批發及零售業']
@@ -86,6 +87,7 @@ statisticsCallCenters={}
 statisticsReviewCountres={}
 statisticsReviewCallCenters={}
 tmpFile=getTmpFileNamePostfix()+'.csv'
+categorylist=set()
 
 
 # get county data and district data
@@ -99,23 +101,26 @@ countyData.close()
 # generate statistics report
 smeSourceData=open(path+'/'+smeFile, 'r', encoding = 'UTF-8')
 #smeTmpData=open(path+'/'+tmpFile, 'w',  encoding = 'UTF-8')
+totalSMECount=0
 for record in smeSourceData:
     data=record.split(',')
     isSME=data[13]
+    totalSMECount+=1
     if 'Y' in isSME or 'y' in isSME: # for SME   
-        category=data[6]
+        #category=data[6]
         categoryOne=data[5]
-        if categoryOne in categoryThree:
-            category=data[7]      
+        categorylist.add(categoryOne)
+        #if categoryOne in categoryThree:
+        #    category=data[7]      
         dataCounty=data[9]
         
         #  Part I: get category in each county
         statisticsCounty=countyDictionary[dataCounty]
-        ingestData(statisticsCounty, category,statisticsCountres )
+        ingestData(statisticsCounty, categoryOne,statisticsCountres )
                               
         # Part II: get category in each call center  
         callCenter=callCenterDictionary[dataCounty]
-        ingestData(callCenter, category,statisticsCallCenters )
+        ingestData(callCenter, categoryOne,statisticsCallCenters )
            
 #smeTmpData.close()
 smeSourceData.close()
@@ -133,20 +138,21 @@ for record in smeReviewData:
         
         #  Part I: get category in each county
         statisticsCounty=countyDictionary[dataCounty]
-        ingestData(statisticsCounty, category,statisticsReviewCountres )
+        ingestData(statisticsCounty, categoryOne,statisticsReviewCountres )
                               
         # Part II: get category in each call center  
         callCenter=callCenterDictionary[dataCounty]
-        ingestData(callCenter, category,statisticsReviewCallCenters )
+        ingestData(callCenter, categoryOne,statisticsReviewCallCenters )
     idx+=1
 smeReviewData.close()
-
-outputStatisticsNumberToExcel(statisticsCountres,('產業別','核貸家數','中小企業總家數'),'',path+'/'+outputFileCountyDistribution)
+#
+#outputStatisticsNumberToExcel(statisticsCountres,('產業別','核貸家數','中小企業總家數'),'',path+'/'+outputFileCountyDistribution)
 printDictionary(statisticsCountres)
-#printDictionary(statisticsCallCenters)
+printDictionary(statisticsCallCenters)
 #printDictionary(countyDictionary)
 #printDictionary(callCenterDictionary)
-#printDictionary(statisticsReviewCountres)
-#printDictionary(statisticsReviewCallCenters)
+printDictionary(statisticsReviewCountres)
+printDictionary(statisticsReviewCallCenters)
+print(totalSMECount)
 
 
