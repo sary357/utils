@@ -40,32 +40,38 @@ def ingestData(key, category, resultDictionary):
         value={}
         value[category]=1
         resultDictionary[key]=value
-def outputStatisticsNumberToExcel(reviewedDataDict, totalDataDict,titleList, tabNamPrefix,fileName):
-    keySet=totalDataDict.keys()
+def outputStatisticsNumberToExcel(dataDictionary,areaSet, categorySet, tabTitle,fileName):
+    rowFieldTitle=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
     wb=Workbook()
-    for key in keySet:
-        ws=wb.create_sheet(tabNamPrefix+key)
-        ws.title=tabNamPrefix+key
-        tmpDic=totalDataDict[key]
-        tmpKeySet=tmpDic.keys()
-        indx=1
-        for t in titleList:
-            ws.cell(row=1,column=indx, value=t)
-            indx+=1
-        indx=2
-        
-        for k in tmpKeySet:
-            formula='sum('
-            ws.cell(row=indx, column=1, value=k)
-            ws.cell(row=indx, column=3, value=tmpDic[k])
-            #ws.cell(row=indx, column=4, value=)
-            indx+=1
-        formulaReview="=sum(b2:b"+str(indx-1)+")"
-        formulaTotal="=sum(b2:b"+str(indx-1)+")"
-        ws.cell(row=indx+1, column=1, value='全部家數')
-        ws.cell(row=indx+1, column=2, value=formulaReview)
-        ws.cell(row=indx+1, column=3, value=formulaTotal)
+    ws=wb.active
+    ws.title=tabTitle
+    #ws=wb.create_sheet(tabTitle)
+    colIdx=2
+    
+    # add area as title
+    for area in areaSet:
+        ws.cell(row=1, column=colIdx, value=area)
+        colIdx+=1
+    ws.cell(row=1, column=colIdx, value='總計')
+    
+    rowIdx=2
+    
+    for category in categorySet:
+        colIdx=2
+        ws.cell(row=rowIdx, column=1, value=category)
+        for area in areaSet:
+            if area in dataDictionary and category in dataDictionary[area]:
+                ws.cell(row=rowIdx, column=colIdx, value=dataDictionary[area][category])
+            else:
+                ws.cell(row=rowIdx, column=colIdx, value=0)
+            colIdx+=1
+        ws.cell(row=rowIdx, column=colIdx, value='=sum(B'+str(rowIdx)+':'+rowFieldTitle[colIdx-2]+str(rowIdx)+')')
+       
+        rowIdx+=1
+    colIdx=2
+
     wb.save(fileName)
+    print('Export the data to the file: '+fileName )
     
 
 # I: setting
@@ -145,14 +151,41 @@ for record in smeReviewData:
         ingestData(callCenter, categoryOne,statisticsReviewCallCenters )
     idx+=1
 smeReviewData.close()
+
+# (dataDictionary,areaSet, categorySet, tabTitle,fileName):
+countyList=['基隆市','台北市','新北市','桃園市','新竹縣','新竹市','苗栗縣','台中市',
+          '彰化縣','雲林縣','嘉義縣','嘉義市','台南市','高雄市','屏東縣','南投縣',
+          '宜蘭縣','花蓮縣','台東縣','澎湖縣','金門縣','連江縣']
+
+outputStatisticsNumberToExcel(dataDictionary=statisticsReviewCallCenters,
+                              areaSet=statisticsReviewCallCenters.keys(), 
+                             categorySet=categorylist,
+                             tabTitle='放款名單家數分布',
+                             fileName=path+'/放款名單家數分布_區域中心'+'.xlsx' )
+outputStatisticsNumberToExcel(dataDictionary=statisticsReviewCountres,
+                              areaSet=countyList, 
+                             categorySet=categorylist,
+                             tabTitle='放款名單家數分布',
+                             fileName=path+'/放款名單家數分布_縣市'+'.xlsx' )
+
+outputStatisticsNumberToExcel(dataDictionary=statisticsCountres,
+                              areaSet=countyList, 
+                             categorySet=categorylist,
+                             tabTitle='全台中小企業分布',
+                             fileName=path+'/全台中小企業分布_縣市'+'.xlsx' )
+outputStatisticsNumberToExcel(dataDictionary=statisticsCallCenters,
+                              areaSet=statisticsCallCenters.keys(), 
+                             categorySet=categorylist,
+                             tabTitle='全台中小企業分布',
+                             fileName=path+'/全台中小企業分布_區域中心'+'.xlsx' )
 #
 #outputStatisticsNumberToExcel(statisticsCountres,('產業別','核貸家數','中小企業總家數'),'',path+'/'+outputFileCountyDistribution)
-printDictionary(statisticsCountres)
-printDictionary(statisticsCallCenters)
+#printDictionary(statisticsCountres)
+#printDictionary(statisticsCallCenters)
 #printDictionary(countyDictionary)
 #printDictionary(callCenterDictionary)
-printDictionary(statisticsReviewCountres)
-printDictionary(statisticsReviewCallCenters)
-print(totalSMECount)
+#printDictionary(statisticsReviewCountres)
+#printDictionary(statisticsReviewCallCenters)
+#print('total records: '+str(totalSMECount))
 
 
