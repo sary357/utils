@@ -75,8 +75,9 @@ def outputStatisticsNumberToExcel(dataDictionary,areaSet, categorySet, tabTitle,
 
 
 # I: setting
-path='D:/fuming.Tsai/Documents/Tools/PortableGit/projects/GitDocs/06-專案文件/05-SME授信客戶資金需求/'
-smeFile='sme_all_industry.csv'
+path='D:/fuming.Tsai/Documents/Tools/PortableGit/projects/GitDocs/06-專案文件/05-SME授信客戶資金需求'
+smeFile='sme_all_industry_orgtype.csv'
+#  sme_all_industry_orgtype.csv
 #smeFile='test20170516.csv'
 smeCategoryFile='新興業務區中心.csv'
 reviewResult='uniaprcust.csv'
@@ -106,11 +107,13 @@ countyData.close()
 
 # generate statistics report
 smeSourceData=open(path+'/'+smeFile, 'r', encoding = 'UTF-8')
+print(path+'/'+smeFile)
 #smeTmpData=open(path+'/'+tmpFile, 'w',  encoding = 'UTF-8')
 totalSMECount=0
 for record in smeSourceData:
+    #print(record)
     data=record.split(',')
-    isSME=data[13]
+    isSME=data[14]
     totalSMECount+=1
     if 'Y' in isSME or 'y' in isSME: # for SME   
         #category=data[6]
@@ -156,9 +159,11 @@ smeReviewData.close()
 countyList=['基隆市','台北市','新北市','桃園市','新竹縣','新竹市','苗栗縣','台中市',
           '彰化縣','雲林縣','嘉義縣','嘉義市','台南市','高雄市','屏東縣','南投縣',
           '宜蘭縣','花蓮縣','台東縣','澎湖縣','金門縣','連江縣']
+callCenterList=['新興台北(一/二)區中心','新興桃竹區中心','新興中彰區中心',
+'新興嘉南區中心','新興高屏區中心','其它']
 
 outputStatisticsNumberToExcel(dataDictionary=statisticsReviewCallCenters,
-                              areaSet=statisticsReviewCallCenters.keys(), 
+                              areaSet=callCenterList, 
                              categorySet=categorylist,
                              tabTitle='放款名單家數分布',
                              fileName=path+'/放款名單家數分布_區域中心'+'.xlsx' )
@@ -168,13 +173,14 @@ outputStatisticsNumberToExcel(dataDictionary=statisticsReviewCountres,
                              tabTitle='放款名單家數分布',
                              fileName=path+'/放款名單家數分布_縣市'+'.xlsx' )
 
+
 outputStatisticsNumberToExcel(dataDictionary=statisticsCountres,
                               areaSet=countyList, 
                              categorySet=categorylist,
                              tabTitle='全台中小企業分布',
                              fileName=path+'/全台中小企業分布_縣市'+'.xlsx' )
 outputStatisticsNumberToExcel(dataDictionary=statisticsCallCenters,
-                              areaSet=statisticsCallCenters.keys(), 
+                              areaSet=callCenterList, 
                              categorySet=categorylist,
                              tabTitle='全台中小企業分布',
                              fileName=path+'/全台中小企業分布_區域中心'+'.xlsx' )
