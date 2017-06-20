@@ -64,15 +64,13 @@ if __name__ == '__main__':
 
        # sortGroupArray=sorted(groupArray, key=Counter(groupArray).get, reverse=True)
         dict={}
-        #print(sortGroupArray)
-        for item in sortGroupArray:
-        #    print(item)
+        for item in groupArray:
             if item in dict:
                 dict[item]=dict[item]+1
             else:
                 dict[item]=1
         
-        print(dict)               
+      #  print(dict)               
         with open(outputFileName, 'w', encoding='utf-8') as oFile:
             writer=csv.writer(oFile, dialect='excel', delimiter=',', doublequote=True)
             for row in tmpArray:
