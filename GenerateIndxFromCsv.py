@@ -34,19 +34,19 @@ if __name__ == '__main__':
     else:
         # (self, skip1stLine=False, delimiter=None, idFieldNo=0)
         print("Start to Process...")
-        fieldNames=['id','name','addr','parentid','indcode0','CLASSTHREE','capital','operiodatapr','pred1','h5','h1','h2','h3','h4','Outlook','owner','idx']
+        # "id","name","addr","parent_id","indcode0","CLASSTHREE","capital","operiodatapr","pred1","h5","h1","h2","h3","h4","Outlook","yel_name","yel_addr","yel_tel","addr_eq_yel_addr","TFBcenter","assignAO","assignnote","owner"
         inputFileName=sys.argv[1]
         outputFileName=sys.argv[2]
    
         
         with open(inputFileName, 'r') as iFile:
             with open(outputFileName, 'w', encoding='utf-8') as oFile:
-                reader = csv.reader(iFile)
-                writer=csv.writer(oFile)
+                reader = csv.reader(iFile, dialect='excel', delimiter=',', doublequote=True)
+                writer=csv.writer(oFile, dialect='excel', delimiter=',', doublequote=True)
                 for row in reader:
                     address=row[2]
-                    if len(row) >=16:
-                        company_owner=row[15]
+                    if len(row) >=22:
+                        company_owner=row[22]
                     else:
                         company_owner=''
                     if company_owner in ('NULL', 'null'):
@@ -55,7 +55,7 @@ if __name__ == '__main__':
                         newIdx=company_owner+'_'+address.split('號')[0]+'號'
                     else:
                         newIdx=''
-                    if len(row) == 15:
+                    if len(row) == 22:
                         row.append('')
                     row.append(newIdx)
          #           print(row)
