@@ -19,7 +19,7 @@ import requests
 import threading
 import os
 import csv
-
+from collections import Counter
 
 if __name__ == '__main__':
    # sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
@@ -38,11 +38,11 @@ if __name__ == '__main__':
         inputFileName=sys.argv[1]
         outputFileName=sys.argv[2]
    
-        
+        groupIdx=1
+        groupArray=[]
+        tmpArray=[]
         with open(inputFileName, 'r') as iFile:
-            with open(outputFileName, 'w', encoding='utf-8') as oFile:
                 reader = csv.reader(iFile, dialect='excel', delimiter=',', doublequote=True)
-                writer=csv.writer(oFile, dialect='excel', delimiter=',', doublequote=True)
                 for row in reader:
                     address=row[2]
                     if len(row) >=22:
@@ -58,8 +58,32 @@ if __name__ == '__main__':
                     if len(row) == 22:
                         row.append('')
                     row.append(newIdx)
-         #           print(row)
-                    writer.writerow(row)
+                    if newIdx != '':
+                        groupArray.append(newIdx)
+                    tmpArray.append(row)
+
+       # sortGroupArray=sorted(groupArray, key=Counter(groupArray).get, reverse=True)
+        dict={}
+        #print(sortGroupArray)
+        for item in sortGroupArray:
+        #    print(item)
+            if item in dict:
+                dict[item]=dict[item]+1
+            else:
+                dict[item]=1
+        
+        print(dict)               
+        with open(outputFileName, 'w', encoding='utf-8') as oFile:
+            writer=csv.writer(oFile, dialect='excel', delimiter=',', doublequote=True)
+            for row in tmpArray:
+                if row[23] in dict and dict[row[23]] > 1:
+                    tmpStr=row[23]
+                    row.append(tmpStr)
+                else:
+                    row.append('')
+                writer.writerow(row)
+
+
     today=datetime.now()
     print('End time: '+ today.strftime(fmt))
 
