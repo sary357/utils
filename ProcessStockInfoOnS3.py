@@ -102,37 +102,42 @@ def caculate_rsv_k(arr):
             indx=indx+1
         idx=1
         
+    sidx=0
+    upperbound=9 # K value: 9
     for idx in range(matrix_height):
-        min_value=5000
-        max_value=-1
-        if idx>0 and (idx)<matrix_height and matrix[idx][4]==0.0:
-            # get max value in 2 days
-            if matrix[idx][1] < matrix[idx-1][1]:
-                max_value=matrix[idx-1][1]
-            else:
-                max_value=matrix[idx][1]
-                
-            # get min value in 2 days
-            if matrix[idx][2] > matrix[idx-1][2]:
-                min_value=matrix[idx-1][2]
-            else:
-                min_value=matrix[idx][2]
+        min_value=50000
+        max_value=-50000
+        sidx=0
+        
+        if idx>=(upperbound-1) and (idx)<matrix_height and matrix[idx][4]==0.0:
+            # get max value and min value in upperbound days
+            for sidx in range(upperbound):
+                if max_value < matrix[idx-sidx][1]:
+                    max_value=matrix[idx-sidx][1]
+                 
+                if min_value > matrix[idx-sidx][2]:
+                    min_value=matrix[idx-sidx][2]
+           
             matrix[idx][4]=(matrix[idx][0]-min_value)/(max_value-min_value)
             
     for idx in range(matrix_height):
         if idx > 0 and matrix[idx][5]==0.0:
-            if idx==1:
-                matrix[idx][5]=50
+            if idx< (upperbound-1):
+                matrix[idx][5]=0.0
+            elif idx == (upperbound-1):
+                matrix[idx][5]=50.0
             else:
                 matrix[idx][5]=100.0/3*matrix[idx][4]+2/3.0*matrix[(idx-1)][5]
     #print(matrix)
+    #source(tmp_arr): unix_timestamp,yyyymmdd,close,high,low,open,volume,RSV,k
     result=[]
     idx=0
     for d in arr:
         if idx==0:
             result.append(d)
         else:
-            result.append(d+','+str(matrix[(idx-1)][4])+','+str(matrix[(idx-1)][5]))
+            tmp_arr_1=d.split(',')
+            result.append(tmp_arr_1[0]+','+tmp_arr_1[1]+','+tmp_arr_1[2]+','+tmp_arr_1[3]+','+tmp_arr_1[4]+','+tmp_arr_1[5]+','+tmp_arr_1[6]+','+str(matrix[(idx-1)][4])+','+str(matrix[(idx-1)][5]))
         idx=idx+1
     return result
             
