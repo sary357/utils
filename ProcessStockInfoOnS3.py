@@ -25,6 +25,7 @@ k_value_upperbound=float(os.environ['K_VALUE_UPPERBOUND'])
 k_value_lowerbound=float(os.environ['K_VALUE_LOWERBOUND'])
 sender=os.environ['SENDER']
 recipients=os.environ['MAIL_RECIPIENTS']
+data_end_point=os.environ['DEFAULT_DATA_PAGE_END_POINT']
 
 # SMTP Config
 EMAIL_HOST = os.environ['EMAIL_HOST']
@@ -276,14 +277,16 @@ def lambda_handler(event, context):
     buy_stock_list=[]
     sell_stock_list=[]
     data_update_time=None
+    url_str=''
     for k in result_k_arr:
         k_value=float(k.split(',')[1])
         stock_symbol_tmp=k.split(',')[0]
         if k_value >= k_value_upperbound:
-            sell_stock_list.append(stock_symbol_tmp)
+            sell_stock_list.append(stock_symbol_tmp+'(k-value:'+str(k_value)+')')
         elif k_value <= k_value_lowerbound:
-            buy_stock_list.append(stock_symbol_tmp)
+            buy_stock_list.append(stock_symbol_tmp+'(k-value:'+str(k_value)+')')
         data_update_time=k.split(',')[2]
+        url_str=url_str+data_end_point+'/'+stock_symbol_tmp+'\n'
             
     #current_time=datetime.now().strftime('%Y/%m/%d')
     report_date_update_time=data_update_time[:4]+'/'+data_update_time[4:6]+'/'+data_update_time[6:8]
@@ -294,7 +297,11 @@ def lambda_handler(event, context):
         action_str=action_str+"    The stock symbol we recommend to buy: " + ','.join(buy_stock_list) + '\n'
     if len(sell_stock_list) > 0:
         action_str=action_str+"    The stock symbol we recommend to sell: " + ','.join(sell_stock_list) + '\n'
+    action_str=action_str+'\n\n'+'Detailed K-value info page: \n'+url_str
     print(action_str)
+    
+
+    
     if len(buy_stock_list) >0 or len(sell_stock_list)>0:
         notify_by_mail("[IMPORTANT] K-value analysis report ("+report_date_update_time+")", action_str,1)
     else:
